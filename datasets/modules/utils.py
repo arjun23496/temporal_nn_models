@@ -36,3 +36,13 @@ def get_duration(action_df, subject, room, camera_angle, action, house):
                                                                                        camera_angle),
                                   engine="python").reset_index(drop=True)
     return datetime.strptime(action_info["Duration"][0], "%H:%M:%S")
+
+
+def get_filename(action_df, subject, room, camera_angle, action, house):
+    action_info = action_df.query("VideoName.str.contains(\"{}_S{}{}{}_fC{}\")".format(action_map[action],
+                                                                                       subject,
+                                                                                       room[0],
+                                                                                       house,
+                                                                                       camera_angle),
+                                  engine="python").reset_index(drop=True)
+    return action_info["VideoName"][0]

@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from datasets.modules.utils import get_random_camera_angle
 from datasets.modules.utils import get_duration
+from datasets.modules.utils import get_filename
 
 import datasets.modules.constants as constants
 import copy
@@ -51,7 +52,13 @@ class SpuriousActionsManager:
                                                                             camera_angle,
                                                                             action,
                                                                             house)
-            timeline.append((time0, room, camera_angle, action))
+            filename = get_filename(self._action_df,
+                                    subject,
+                                    room,
+                                    camera_angle,
+                                    action,
+                                    house)
+            timeline.append((time0, room, camera_angle, action, filename))
         except (IndexError, ValueError):
             add_status = False
 
