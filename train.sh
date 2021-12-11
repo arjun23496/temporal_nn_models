@@ -11,6 +11,6 @@ python ./train.py --data_dir /media/arjun/Shared/research_projects/temporal_weig
                   --print_interval 10 \
                   --device cpu \
                   --use_state \
-                  --height 128 \
-                  --width 256
+                  --height 64 \
+                  --width 128
 #                  --pretrained_model model

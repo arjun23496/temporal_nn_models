@@ -44,8 +44,8 @@ def make_dataset(path, image_transform, opt):
     spurious_action_manager = SpuriousActionsManager(action_df, available_rooms=["Living", "Dining", "Kitchen"])
 
     for time, action in timed_actions.items():
-        if action not in actions_list:
-            actions_list.append(action)
+        if action[1] not in actions_list:
+            actions_list.append(action[1])
         timed_action_manager.add_action(action, time)
 
     for action, prob in spurious_actions.items():

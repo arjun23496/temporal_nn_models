@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import nn
-from networks_old import network
+from convolutional_lstm import ConvLSTM
 from data import build_dataloader
 from torch.nn import functional as F
 
@@ -18,9 +18,13 @@ class Model():
         train_dataloader, valid_dataloader = build_dataloader(opt)
         self.dataloader = {'train': train_dataloader, 'valid': valid_dataloader}
 
-        self.net = network(self.opt.channels, self.opt.height, self.opt.width, -1, self.opt.schedsamp_k,
-                           self.opt.use_state, self.opt.num_masks, self.opt.model == 'STP', self.opt.model == 'CDNA',
-                           self.opt.model == 'DNA', self.opt.context_frames)
+        self.net = ConvLSTM(input_dim=self.opt.channels,
+                            hidden_dim=[16, 8],
+                            kernel_size=(5, 5),
+                            num_layers=2,
+                            batch_first=True,
+                            bias=True,
+                            return_all_layers=True)
         self.net.to(self.device)
         self.mse_loss = nn.MSELoss()
         self.w_state = 1e-4
@@ -30,34 +34,39 @@ class Model():
 
     def train_epoch(self, epoch):
         print("--------------------start training epoch %2d--------------------" % epoch)
+        hidden_state = None
         for sample_id, sample in enumerate(self.dataloader['train']):
             self.net.zero_grad()
             images, actions = sample
+            # print(actions)
             # actions, images = images
             # print(actions[0])
-            images = images.permute([1, 0, 2, 3, 4]).unbind(0)  ## T * N * C * H * W
-            actions = actions.permute([1, 0, 2]).unbind(0)  ## T * N  * C
-            print("images ", images.shape)
-            print("actions ", actions.shape)
-            gen_images, gen_states = self.net(images)
-
+            # images = images.permute([1, 0, 2, 3, 4])  ## T * N * C * H * W
+            # actions = actions.permute([1, 0, 2])  ## T * N  * C
+            images.requires_grad = True
+            # images, actions = torch.autograd.Variable(images), torch.autograd.Variable(actions)
+            gen_images, hidden_state = self.net(images, hidden_state)
+            print(len(gen_images))
             loss, psnr = 0.0, 0.0
             for i, (image, gen_image) in enumerate(
                     zip(images[self.opt.context_frames:], gen_images[self.opt.context_frames - 1:])):
+                print(len(gen_image))
                 recon_loss = self.mse_loss(image, gen_image)
                 psnr_i = peak_signal_to_noise_ratio(image, gen_image)
                 loss += recon_loss
                 psnr += psnr_i
 
             loss /= torch.tensor(self.opt.sequence_length - self.opt.context_frames)
+            loss.requires_grad = True
+            # print(loss.requires_grad)
             loss.backward()
             self.optimizer.step()
 
-            if iter_ % self.opt.print_interval == 0:
-                print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
-                      (epoch, iter_, len(self.dataloader['train'].dataset) // self.opt.batch_size, loss))
+            loss.detach()
 
-            self.net.iter_num += 1
+            if sample_id % self.opt.print_interval == 0:
+                print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
+                      (epoch, sample_id, 30, loss))
 
     def train(self):
         for epoch_i in range(0, self.opt.epochs):

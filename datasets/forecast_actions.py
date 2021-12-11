@@ -21,7 +21,7 @@ import datasets.modules.constants as constants
 
 class Sims4ActionDataset(torch.utils.data.IterableDataset):
     def __init__(self, data_root, timed_action_manager, spurious_action_manager, actions_list, image_transform=None,
-                 house=1, room="Living", subject=1, device='cpu', frames_per_clip=350):
+                 house=1, room="Living", subject=1, device='cpu', frames_per_clip=320, skip_frequency=4):
         super(Sims4ActionDataset).__init__()
         self.actions_list = actions_list
         self.actions_id_map = { action: id for id, action in enumerate(self.actions_list) }
@@ -37,6 +37,7 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
         self.batch_size = 1
         self.image_transform = image_transform
         self.frames_per_clip = frames_per_clip
+        self.skip_frequency = skip_frequency
         self.device = device
 
     def build_timeline(self):
@@ -111,8 +112,17 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
 
                 # intime.append(batch[0])
                 # yield batch[0]
+
             image_intime = image_intime[:self.frames_per_clip]
             action_intime = action_intime[:self.frames_per_clip]
+
+            while len(image_intime) < self.frames_per_clip:
+                image_intime.append(image_intime[-1].clone())
+                action_intime.append(action_intime[-1].clone())
+
+            image_intime = image_intime[::self.skip_frequency]
+            action_intime = action_intime[::self.skip_frequency]
+
             image_intime = torch.cat([img.unsqueeze(0) for img in image_intime], dim=0)
             action_intime = torch.cat([action.unsqueeze(0) for action in action_intime], dim=0)
             # print("image ", image_intime.size())
