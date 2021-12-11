@@ -5,10 +5,12 @@ python ./train.py --data_dir /media/arjun/Shared/research_projects/temporal_weig
                   --context_frames 2 \
                   --num_masks 10 \
                   --schedsamp_k 900.0 \
-                  --batch_size 32 \
+                  --batch_size 3 \
                   --learning_rate 0.001 \
                   --epochs 10 \
                   --print_interval 10 \
                   --device cpu \
                   --use_state \
+                  --height 128 \
+                  --width 256
 #                  --pretrained_model model

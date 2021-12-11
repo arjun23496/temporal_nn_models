@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 IMG_EXTENSIONS = ('.npy',)
 
 
-def make_dataset(path):
+def make_dataset(path, image_transform, opt):
     timed_actions = {
         "00:05:00": ("Kitchen", "Cook"),
         "00:08:00": ("Dining", "Eat"),
@@ -29,6 +29,7 @@ def make_dataset(path):
 
     event_driven_actions = {}
 
+    actions_list = []
     spurious_actions = {
         "Readbook": 0.2,
         "Usecomputer": 0.2,
@@ -43,14 +44,20 @@ def make_dataset(path):
     spurious_action_manager = SpuriousActionsManager(action_df, available_rooms=["Living", "Dining", "Kitchen"])
 
     for time, action in timed_actions.items():
+        if action not in actions_list:
+            actions_list.append(action)
         timed_action_manager.add_action(action, time)
 
     for action, prob in spurious_actions.items():
+        if action not in actions_list:
+            actions_list.append(action)
         spurious_action_manager.add_action(action, prob)
 
     ds = Sims4ActionDataset(path,
                             timed_action_manager,
-                            spurious_action_manager)
+                            spurious_action_manager,
+                            actions_list,
+                            image_transform=image_transform)
 
     return ds
 
@@ -60,51 +67,6 @@ def npy_loader(path):
     return samples
 
 
-class PushDataset(Dataset):
-    def __init__(self, root, image_transform=None, action_transform=None, state_transform=None, loader=npy_loader, device='cpu'):
-        if not os.path.exists(root):
-            raise FileExistsError('{0} does not exists!'.format(root))
-        # self.subfolders = [f[0] for f in os.walk(root)][1:]
-        self.image_transform = image_transform
-        self.action_transform = action_transform
-        self.state_transform = state_transform
-        self.dataset = make_dataset(root)
-        # if len(self.samples) == 0: raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n" "Supported
-        # image extensions are: " + ",".join( IMG_EXTENSIONS)))
-        self.loader = loader
-        self.device = device
-
-    def __getitem__(self, index):
-        count = 0
-
-        # for ds in self.dataset:
-        #     plt.imshow(ds[-1])
-        #     plt.show()
-        #     count += 1
-        #     if count > 10:
-        #         break
-        #
-        # sys.exit()
-
-        for ds in self.dataset:
-            time, room, camera_angle, action, image = ds
-
-            yield torch.from_numpy(image), torch.zeros(10), torch.zeros(10)
-
-        # image, action, state = self.samples[index]
-        # image, action, state = self.loader(image), self.loader(action), self.loader(state)
-        #
-        # if self.image_transform is not None:
-        #     image = torch.cat([self.image_transform(single_image).unsqueeze(0) for single_image in image.unbind(0)], dim=0)
-        # if self.action_transform is not None:
-        #     action = torch.cat([self.action_transform(single_action).unsqueeze(0) for single_action in action.unbind(0)], dim=0)
-        # if self.state_transform is not None:
-        #     state = torch.cat([self.state_transform(single_state).unsqueeze(0) for single_state in state.unbind(0)], dim=0)
-
-        # return image.to(self.device), action.to(self.device), state.to(self.device)
-
-    def __len__(self):
-        return 10
 
 
 def build_dataloader(opt):
@@ -114,21 +76,19 @@ def build_dataloader(opt):
         transforms.ToTensor()
     ])
 
-    train_ds = PushDataset(
-        root=opt.data_dir,
-        image_transform=image_transform,
-        loader=npy_loader,
-        device=opt.device
-    )
+    train_ds = make_dataset(opt.data_dir, image_transform, opt)
+    test_ds = make_dataset(opt.data_dir, image_transform, opt)
 
-    testseen_ds = PushDataset(
-        root=opt.data_dir,
-        image_transform=image_transform,
-        loader=npy_loader,
-        device=opt.device
-    )
+    # for batch in train_ds:
+    #     # sample =
+    #     print(batch[0][0])
+    #     plt.imshow(np.swapaxes(batch[0][1].data.numpy(), 0, 2))
+    #     plt.show()
+    #     break
 
-    train_dl = DataLoader(dataset=train_ds, batch_size=opt.batch_size, shuffle=True, drop_last=False)
-    testseen_dl = DataLoader(dataset=testseen_ds, batch_size=opt.batch_size, shuffle=False, drop_last=False)
+    # sys.exit()
+
+    train_dl = DataLoader(dataset=train_ds, batch_size=opt.batch_size, drop_last=False)
+    testseen_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size, drop_last=False)
     return train_dl, testseen_dl
 

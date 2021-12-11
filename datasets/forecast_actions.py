@@ -20,19 +20,29 @@ import datasets.modules.constants as constants
 
 
 class Sims4ActionDataset(torch.utils.data.IterableDataset):
-    def __init__(self, data_root, timed_action_manager, spurious_action_manager, house=1, room="Living", subject=1):
+    def __init__(self, data_root, timed_action_manager, spurious_action_manager, actions_list, image_transform=None,
+                 house=1, room="Living", subject=1, device='cpu', frames_per_clip=350):
         super(Sims4ActionDataset).__init__()
+        self.actions_list = actions_list
+        self.actions_id_map = { action: id for id, action in enumerate(self.actions_list) }
         self.action_managers = [
             timed_action_manager,
             spurious_action_manager
         ]
         self.data_root = data_root
-        self.timeline = []
+        # self.timeline = []
         self.house = house
         self.room = room
         self.subject = subject
+        self.batch_size = 1
+        self.image_transform = image_transform
+        self.frames_per_clip = frames_per_clip
+        self.device = device
 
     def build_timeline(self):
+        # torch.manual_seed(index)
+        # np.random.seed(index)
+        timeline = []
         time = constants.MIN_TIME
         room = self.room
 
@@ -42,25 +52,74 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
 
         while time < constants.MAX_TIME:
             for action_manager in self.action_managers:
-                add_status, time, room, self.timeline = action_manager.update_timeline(self.house, self.subject,
-                                                                                       room, time, self.timeline)
+                add_status, time, room, timeline = action_manager.update_timeline(self.house, self.subject,
+                                                                                  room, time, timeline)
                 if add_status:
                     break
 
+        return timeline
+
     def __iter__(self):
         # while True:
-        self.build_timeline()
+        timelines = []
+        time = []
+        min_actions = -1
+        for i in range(self.batch_size):
+            timelines.append(self.build_timeline())
 
-        for action_item in self.timeline:
-            time, room, camera_angle, action, filename = action_item
-            vidcap = cv2.VideoCapture(os.path.join(self.data_root,
-                                                   action,
-                                                   filename))
-            success, image = vidcap.read()
-            while success:
-                success, image = vidcap.read()
-                yield time, room, camera_angle, action, image
+            if min_actions == -1 or len(timelines[-1]) < min_actions:
+                min_actions = len(timelines[-1])
 
+        batch = []
+        for action_idx in range(min_actions):
+            batch_infos = []
+            vidcaps = []
+            for sample_id in range(self.batch_size):
+                batch_infos.append(timelines[sample_id][action_idx])
+                _, _, _, action, filename = batch_infos[-1]
+                vidcaps.append(cv2.VideoCapture(os.path.join(self.data_root,
+                                                             action,
+                                                             filename)))
+
+            success = []
+            images = []
+            for sample_id in range(self.batch_size):
+                success_sample, image_sample = vidcaps[sample_id].read()
+                success.append(success_sample)
+                images.append(image_sample)
+
+            success = np.array(success)
+
+            image_intime = []
+            action_intime = []
+            while np.all(success):
+                batch = []
+                for sample_id in range(self.batch_size):
+                    success_sample, image_sample = vidcaps[sample_id].read()
+                    success[sample_id] = success_sample
+
+                    if success_sample:
+                        time0, room, camera_angle, action, filename = batch_infos[sample_id]
+                        action_array = np.zeros(len(self.actions_list))
+                        action_array[self.actions_id_map[action]] = 1
+                        action_array = torch.from_numpy(action_array).to(self.device)
+                        image_sample = self.image_transform(image_sample).to(self.device)
+
+                        image_intime.append(image_sample)
+                        action_intime.append(action_array)
+                    # batch.append((action_array, image_sample))
+
+                # intime.append(batch[0])
+                # yield batch[0]
+            image_intime = image_intime[:self.frames_per_clip]
+            action_intime = action_intime[:self.frames_per_clip]
+            image_intime = torch.cat([img.unsqueeze(0) for img in image_intime], dim=0)
+            action_intime = torch.cat([action.unsqueeze(0) for action in action_intime], dim=0)
+            # print("image ", image_intime.size())
+            # print("action ", action_intime.size())
+            # image_intime = torch.FloatTensor(image_intime)
+            # action_intime = torch.FloatTensor(action_intime)
+            yield image_intime, action_intime
 
 # timed_actions = {
 #     "08:00:00": ("Kitchen", "Cook"),

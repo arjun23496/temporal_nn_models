@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import nn
-from networks import network
+from networks_old import network
 from data import build_dataloader
 from torch.nn import functional as F
 
@@ -19,8 +19,8 @@ class Model():
         self.dataloader = {'train': train_dataloader, 'valid': valid_dataloader}
 
         self.net = network(self.opt.channels, self.opt.height, self.opt.width, -1, self.opt.schedsamp_k,
-                           self.opt.use_state, self.opt.num_masks, self.opt.model=='STP', self.opt.model=='CDNA',
-                           self.opt.model=='DNA', self.opt.context_frames)
+                           self.opt.use_state, self.opt.num_masks, self.opt.model == 'STP', self.opt.model == 'CDNA',
+                           self.opt.model == 'DNA', self.opt.context_frames)
         self.net.to(self.device)
         self.mse_loss = nn.MSELoss()
         self.w_state = 1e-4
@@ -30,30 +30,32 @@ class Model():
 
     def train_epoch(self, epoch):
         print("--------------------start training epoch %2d--------------------" % epoch)
-        for iter_, (images, actions, states) in enumerate(self.dataloader['train']):
+        for sample_id, sample in enumerate(self.dataloader['train']):
             self.net.zero_grad()
-            images = images.permute([1, 0, 2, 3, 4]).unbind(0)
-            actions = actions.permute([1, 0, 2]).unbind(0)
-            states = states.permute([1, 0, 2]).unbind(0)
-            gen_images, gen_states = self.net(images, actions, states[0])
+            images, actions = sample
+            # actions, images = images
+            # print(actions[0])
+            images = images.permute([1, 0, 2, 3, 4]).unbind(0)  ## T * N * C * H * W
+            actions = actions.permute([1, 0, 2]).unbind(0)  ## T * N  * C
+            print("images ", images.shape)
+            print("actions ", actions.shape)
+            gen_images, gen_states = self.net(images)
 
             loss, psnr = 0.0, 0.0
-            for i, (image, gen_image) in enumerate(zip(images[self.opt.context_frames:], gen_images[self.opt.context_frames-1:])):
+            for i, (image, gen_image) in enumerate(
+                    zip(images[self.opt.context_frames:], gen_images[self.opt.context_frames - 1:])):
                 recon_loss = self.mse_loss(image, gen_image)
                 psnr_i = peak_signal_to_noise_ratio(image, gen_image)
                 loss += recon_loss
                 psnr += psnr_i
 
-            for i, (state, gen_state) in enumerate(zip(states[self.opt.context_frames:], gen_states[self.opt.context_frames-1:])):
-                state_loss = self.mse_loss(state, gen_state) * self.w_state
-                loss += state_loss
             loss /= torch.tensor(self.opt.sequence_length - self.opt.context_frames)
             loss.backward()
             self.optimizer.step()
 
             if iter_ % self.opt.print_interval == 0:
                 print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
-                      (epoch, iter_, len(self.dataloader['train'].dataset)//self.opt.batch_size, loss))
+                      (epoch, iter_, len(self.dataloader['train'].dataset) // self.opt.batch_size, loss))
 
             self.net.iter_num += 1
 
@@ -78,8 +80,10 @@ class Model():
                 for i, (state, gen_state) in enumerate(
                         zip(states[self.opt.context_frames:], gen_states[self.opt.context_frames - 1:])):
                     state_loss += self.mse_loss(state, gen_state) * self.w_state
-            recon_loss /= (torch.tensor(self.opt.sequence_length - self.opt.context_frames) * len(self.dataloader['valid'].dataset)/self.opt.batch_size)
-            state_loss /= (torch.tensor(self.opt.sequence_length - self.opt.context_frames) * len(self.dataloader['valid'].dataset)/self.opt.batch_size)
+            recon_loss /= (torch.tensor(self.opt.sequence_length - self.opt.context_frames) * len(
+                self.dataloader['valid'].dataset) / self.opt.batch_size)
+            state_loss /= (torch.tensor(self.opt.sequence_length - self.opt.context_frames) * len(
+                self.dataloader['valid'].dataset) / self.opt.batch_size)
 
             print("evaluation epoch: %3d, recon_loss: %6f, state_loss: %6f" % (epoch, recon_loss, state_loss))
 
