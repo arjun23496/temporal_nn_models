@@ -163,7 +163,7 @@ class ConvLSTM(nn.Module):
             # layer_output = output_inner
             cur_layer_input = layer_output
 
-            layer_output_list.append(output_inner)
+            layer_output_list.append(layer_output)
             last_state_list.append([h.detach(), c.detach()])
 
         if not self.return_all_layers:
