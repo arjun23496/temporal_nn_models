@@ -48,3 +48,12 @@ perform. This approach has a dataset (the video recordings of actions
 being performed). The model will possibly do two things: recognize the
 action from the current frame and then extrapolate the possible set of
 actions in the future frames (or time).
+
+
+### TODO
+
+- [x] Implement dataset class for SIMS dataset
+- [x] Implement train and validation loops
+- [ ] Create a save and load logic for timeline persistence
+- [ ] Fix the minibatching issue (batches are from the same timeline - make it such that it uses different timelines)
+- [ ] Create a test framework

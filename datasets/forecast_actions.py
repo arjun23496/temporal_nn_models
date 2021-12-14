@@ -129,7 +129,7 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
             # print("action ", action_intime.size())
             # image_intime = torch.FloatTensor(image_intime)
             # action_intime = torch.FloatTensor(action_intime)
-            yield image_intime, action_intime
+            yield torch.FloatTensor([action_idx]), image_intime, action_intime
 
 # timed_actions = {
 #     "08:00:00": ("Kitchen", "Cook"),

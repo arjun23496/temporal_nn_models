@@ -39,9 +39,12 @@ class Model():
         hidden_state = None
         for sample_id, sample in tqdm(enumerate(self.dataloader['train'])):
             self.net.zero_grad()
-            images, actions = sample
+            time_id, images, actions = sample
+            print("time: ", time_id)
+            if (time_id == 0).any():
+                hidden_state = None  # reset hidden state when timeline resets
+
             images.requires_grad = True
-            print(images.size())
             gen_images, hidden_state = self.net(images, hidden_state)
             gen_images = gen_images[-1]  # Take only output from final layer
 
