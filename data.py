@@ -88,7 +88,9 @@ def build_dataloader(opt):
 
     # sys.exit()
 
-    train_dl = DataLoader(dataset=train_ds, batch_size=opt.batch_size, drop_last=False, num_workers=opt.batch_size)
-    testseen_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size, drop_last=False, num_workers=opt.batch_size)
+    train_dl = DataLoader(dataset=train_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
+                          drop_last=False)
+    testseen_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
+                             drop_last=False)
     return train_dl, testseen_dl
 

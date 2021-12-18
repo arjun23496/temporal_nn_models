@@ -34,13 +34,32 @@ class Model():
             self.load_weight()
         self.optimizer = torch.optim.Adam(self.net.parameters(), self.opt.learning_rate)
 
+    def pooled_batches(self, loader):
+        loader_it = iter(loader)
+        while True:
+            samples = []
+            for _ in range(loader.num_workers):
+                try:
+                    samples.append(next(loader_it))
+                except StopIteration:
+                    pass
+            if len(samples) == 0:
+                break
+            else:
+                feature_lists = []
+                # collate all the tensors
+                for sample_component_id in range(len(samples[0])):
+                    feature_lists.append(torch.cat([sample[sample_component_id] for sample in samples], dim=0))
+
+                yield tuple(feature_lists)
+
     def train_epoch(self, epoch):
         print("--------------------start training epoch %2d--------------------" % epoch)
         hidden_state = None
-        for sample_id, sample in tqdm(enumerate(self.dataloader['train'])):
+        for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['train']))):
             self.net.zero_grad()
             time_id, images, actions = sample
-            print("time: ", time_id)
+            # print("time: ", time_id)
             if (time_id == 0).any():
                 hidden_state = None  # reset hidden state when timeline resets
 
