@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import nn
-from convolutional_lstm import ConvLSTM
+from models.convolutional_lstm import ConvLSTM
 from data import build_dataloader
 from torch.nn import functional as F
 
