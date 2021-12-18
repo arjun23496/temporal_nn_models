@@ -50,10 +50,21 @@ action from the current frame and then extrapolate the possible set of
 actions in the future frames (or time).
 
 
+### Code Organization
+
+To code base is organized keeping in mind the modularity of the
+interacting components. The folder `datasets` contain classes for
+different datasets to be used for evaluation. The folder `models`
+contain class definitions of models available. The rest of the 
+code is present in the root folder and contains `model.py` containing
+the training protocols. `data.py` contains logic for loading dataset.
+`options.py` contains command line parameter arguments for experiments.
+`train.py` is the main script for high level training protocol logic.
+
 ### TODO
 
 - [x] Implement dataset class for SIMS dataset
 - [x] Implement train and validation loops
 - [ ] Create a save and load logic for timeline persistence
-- [ ] Fix the minibatching issue (batches are from the same timeline - make it such that it uses different timelines)
+- [x] Fix the minibatching issue (batches are from the same timeline - make it such that it uses different timelines)
 - [ ] Create a test framework
