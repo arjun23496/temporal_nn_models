@@ -6,6 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=1-00:00:00          # D-HH:MM:SS
 #SBATCH --mem=10GB
+#SBATCH --gres=gpu:1
 #SBATCH --mail-type=END,FAIL
 #SBATCH --array=0-3
 #SBATCH --mail-user=akaruvally@cs.umass.edu
