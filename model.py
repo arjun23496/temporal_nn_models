@@ -59,18 +59,25 @@ class Model():
         for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['train']))):
             self.net.zero_grad()
             time_id, images, actions = sample
-            # print("time: ", time_id)
-            if (time_id == 0).any():
-                hidden_state = None  # reset hidden state when timeline resets
+
+            if hidden_state is None:
+                context_frames = self.opt.context_frames
+            else:
+                context_frames = 0
+            _, sequence_length, _, _, _ = images.size()  # set sequence length correctly
+
+            if (time_id == 0).any() and hidden_state is not None:
+                break  # epoch is defined as the end of a set of timelines
+                # hidden_state = None  # reset hidden state when timeline resets
 
             images.requires_grad = True
             gen_images, hidden_state = self.net(images, hidden_state)
             gen_images = gen_images[-1]  # Take only output from final layer
 
-            recon_loss = self.mse_loss(images[:, self.opt.context_frames:, :, :, :],
-                                       gen_images[:, self.opt.context_frames-1:-1, :, :, :])
+            recon_loss = self.mse_loss(images[:, context_frames+1:, :, :, :],
+                                       gen_images[:, context_frames:-1, :, :, :])
 
-            loss = recon_loss/torch.tensor(self.opt.sequence_length - self.opt.context_frames)
+            loss = recon_loss/torch.tensor(sequence_length - context_frames)
             loss.backward()
             self.optimizer.step()
 
