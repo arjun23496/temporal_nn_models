@@ -5,7 +5,7 @@
 #SBATCH -e /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.err            # File to which STDERR will be written
 #SBATCH --ntasks=1
 #SBATCH --time=1-00:00:00          # D-HH:MM:SS
-#SBATCH --mem=10GB
+#SBATCH --mem=20GB
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=END,FAIL
 #SBATCH --array=0-3
