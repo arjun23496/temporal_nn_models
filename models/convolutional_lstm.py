@@ -52,7 +52,7 @@ class ConvLSTMCell(nn.Module):
 
         return h_next, c_next
 
-    def init_hidden(self, batch_size, image_size):
+    def init_hidden(self, batch_size, image_size, device='cpu'):
         height, width = image_size
         return (torch.zeros(batch_size, self.hidden_dim, height, width, device=self.conv.weight.device),
                 torch.zeros(batch_size, self.hidden_dim, height, width, device=self.conv.weight.device))
@@ -87,7 +87,7 @@ class ConvLSTM(nn.Module):
     """
 
     def __init__(self, input_dim, hidden_dim, kernel_size, num_layers,
-                 batch_first=False, bias=True, return_all_layers=False):
+                 batch_first=False, bias=True, return_all_layers=False, device='cpu'):
         super(ConvLSTM, self).__init__()
 
         self._check_kernel_size_consistency(kernel_size)
@@ -104,6 +104,7 @@ class ConvLSTM(nn.Module):
         self.num_layers = num_layers
         self.batch_first = batch_first
         self.bias = bias
+        self.device = device
         self.return_all_layers = return_all_layers
 
         cell_list = []

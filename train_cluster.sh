@@ -1,0 +1,12 @@
+python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVideos \
+                  --model CDNA \
+                  --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_test \
+                  --context_frames 2 \
+                  --batch_size 12 \
+                  --learning_rate 0.001 \
+                  --epochs 30 \
+                  --print_interval 10 \
+                  --device cuda:0 \
+                  --use_state \
+                  --height 64 \
+                  --width 128

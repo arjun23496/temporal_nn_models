@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 from torch import nn
 from models.convolutional_lstm import ConvLSTM
 from data import build_dataloader
@@ -26,7 +27,8 @@ class Model():
                             num_layers=2,
                             batch_first=True,
                             bias=True,
-                            return_all_layers=True)
+                            return_all_layers=True,
+                            device=self.device)
         self.net.to(self.device)
         self.mse_loss = nn.MSELoss()
         self.w_state = 1e-4
@@ -59,6 +61,8 @@ class Model():
         for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['train']))):
             self.net.zero_grad()
             time_id, images, actions = sample
+            images = images.to(self.device)
+            actions = actions.to(self.device)
 
             if hidden_state is None:
                 context_frames = self.opt.context_frames
@@ -82,6 +86,7 @@ class Model():
             self.optimizer.step()
 
             loss.detach()  # detach the graph so that graph does not explode
+            torch.cuda.empty_cache()  # empty cuda cache for better memory utilization
 
             if sample_id % self.opt.print_interval == 0:
                 print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
@@ -96,20 +101,31 @@ class Model():
     def evaluate(self, epoch):
         with torch.no_grad():
             hidden_state = None
-            for sample_id, sample in tqdm(enumerate(self.dataloader['val'])):
-                self.net.zero_grad()
-                images, actions = sample
+            losses = []
+            for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['valid']))):
+                time_id, images, actions = sample
+                images = images.to(self.device)
+                actions = actions.to(self.device)
+
+                if hidden_state is None:
+                    context_frames = self.opt.context_frames
+                else:
+                    context_frames = 0
+                _, sequence_length, _, _, _ = images.size()  # set sequence length correctly
+
+                if (time_id == 0).any() and hidden_state is not None:
+                    break  # epoch is defined as the end of a set of timelines
+
                 images.requires_grad = True
-                print(images.size())
                 gen_images, hidden_state = self.net(images, hidden_state)
                 gen_images = gen_images[-1]  # Take only output from final layer
 
-                recon_loss = self.mse_loss(images[:, self.opt.context_frames:, :, :, :],
-                                           gen_images[:, self.opt.context_frames-1:-1, :, :, :])
+                recon_loss = self.mse_loss(images[:, context_frames + 1:, :, :, :],
+                                           gen_images[:, context_frames:-1, :, :, :])
 
-                loss = recon_loss/torch.tensor(self.opt.sequence_length - self.opt.context_frames)
-
-            print("evaluation epoch: %3d, recon_loss: %6f" % (epoch, loss))
+                loss = recon_loss / torch.tensor(sequence_length - context_frames)
+                losses.append(loss.cpu().item())
+            print("evaluation epoch: %3d, recon_loss: %6f" % (epoch, np.mean(losses)))
 
     def save_weight(self, epoch):
         torch.save(self.net.state_dict(), os.path.join(self.opt.output_dir, "net_epoch_%d.pth" % epoch))

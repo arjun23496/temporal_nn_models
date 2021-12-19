@@ -103,8 +103,8 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
                         time0, room, camera_angle, action, filename = batch_infos[sample_id]
                         action_array = np.zeros(len(self.actions_list))
                         action_array[self.actions_id_map[action]] = 1
-                        action_array = torch.from_numpy(action_array).to(self.device)
-                        image_sample = self.image_transform(image_sample).to(self.device)
+                        action_array = torch.from_numpy(action_array)
+                        image_sample = self.image_transform(image_sample)
 
                         image_intime.append(image_sample)
                         action_intime.append(action_array)
@@ -129,7 +129,7 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
             # print("action ", action_intime.size())
             # image_intime = torch.FloatTensor(image_intime)
             # action_intime = torch.FloatTensor(action_intime)
-            yield torch.FloatTensor([action_idx]), image_intime, action_intime
+            yield torch.FloatTensor([action_idx]), image_intime.to(self.device), action_intime.to(self.device)
 
 # timed_actions = {
 #     "08:00:00": ("Kitchen", "Cook"),
