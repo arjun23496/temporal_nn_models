@@ -5,7 +5,7 @@
 #SBATCH -e /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.err            # File to which STDERR will be written
 #SBATCH --ntasks=1
 #SBATCH --time=1-00:00:00          # D-HH:MM:SS
-#SBATCH --mem=20GB
+#SBATCH --mem=24GB
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=END,FAIL
 #SBATCH --array=0-3
@@ -31,7 +31,7 @@ do
                       --model CDNA \
                       --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate} \
                       --context_frames 2 \
-                      --batch_size 32 \
+                      --batch_size 16 \
                       --learning_rate ${learning_rate} \
                       --epochs 30 \
                       --print_interval 10 \
