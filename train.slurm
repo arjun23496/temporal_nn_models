@@ -28,10 +28,10 @@ do
   then
     python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVideos \
                       --model CDNA \
-                      --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR={learning_rate} \
+                      --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate} \
                       --context_frames 2 \
                       --batch_size 32 \
-                      --learning_rate {learning_rate} \
+                      --learning_rate ${learning_rate} \
                       --epochs 30 \
                       --print_interval 10 \
                       --device cuda:0 \
