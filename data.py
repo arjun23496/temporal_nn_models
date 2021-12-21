@@ -14,8 +14,6 @@ from datasets.forecast_actions import Sims4ActionDataset
 
 import matplotlib.pyplot as plt
 
-IMG_EXTENSIONS = ('.npy',)
-
 
 def make_dataset(path, image_transform, opt):
     timed_actions = {
@@ -67,8 +65,6 @@ def npy_loader(path):
     return samples
 
 
-
-
 def build_dataloader(opt):
     image_transform = transforms.Compose([
         transforms.ToPILImage(),
@@ -79,18 +75,11 @@ def build_dataloader(opt):
     train_ds = make_dataset(opt.data_dir, image_transform, opt)
     test_ds = make_dataset(opt.data_dir, image_transform, opt)
 
-    # for batch in train_ds:
-    #     # sample =
-    #     print(batch[0][0])
-    #     plt.imshow(np.swapaxes(batch[0][1].data.numpy(), 0, 2))
-    #     plt.show()
-    #     break
-
-    # sys.exit()
-
     train_dl = DataLoader(dataset=train_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
                           drop_last=False)
-    testseen_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
+    validation_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
                              drop_last=False)
-    return train_dl, testseen_dl
+    test_dl = DataLoader(dataset=test_ds, batch_size=opt.batch_size // opt.batch_size, num_workers=opt.batch_size,
+                               drop_last=False)
 
+    return train_dl, validation_dl, test_dl

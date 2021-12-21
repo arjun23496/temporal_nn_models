@@ -30,7 +30,6 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
             spurious_action_manager
         ]
         self.data_root = data_root
-        # self.timeline = []
         self.house = house
         self.room = room
         self.subject = subject
@@ -41,8 +40,6 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
         self.device = device
 
     def build_timeline(self):
-        # torch.manual_seed(index)
-        # np.random.seed(index)
         timeline = []
         time = constants.MIN_TIME
         room = self.room
@@ -108,10 +105,6 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
 
                         image_intime.append(image_sample)
                         action_intime.append(action_array)
-                    # batch.append((action_array, image_sample))
-
-                # intime.append(batch[0])
-                # yield batch[0]
 
             image_intime = image_intime[:self.frames_per_clip]
             action_intime = action_intime[:self.frames_per_clip]
@@ -125,53 +118,4 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
 
             image_intime = torch.cat([img.unsqueeze(0) for img in image_intime], dim=0)
             action_intime = torch.cat([action.unsqueeze(0) for action in action_intime], dim=0)
-            # print("image ", image_intime.size())
-            # print("action ", action_intime.size())
-            # image_intime = torch.FloatTensor(image_intime)
-            # action_intime = torch.FloatTensor(action_intime)
             yield torch.FloatTensor([action_idx]), image_intime.to(self.device), action_intime.to(self.device)
-
-# timed_actions = {
-#     "08:00:00": ("Kitchen", "Cook"),
-#     "08:30:00": ("Dining", "Eat"),
-#     "08:45:00": (None, "Drink"),
-#     "09:30:00": ("Kitchen", "Cook"),
-#     "09:45:00": ("Dining", "Eat"),
-#     "10:00:00": (None, "Drink"),
-#     "10:30:00": (None, "Drink"),
-#     "11:00:00": ("Kitchen", "Cook"),
-#     "11:30:00": ("Dining", "Eat")
-# }
-#
-# event_driven_actions = {}
-#
-# spurious_actions = {
-#     "Readbook": 0.2,
-#     "Usecomputer": 0.2,
-#     "Usephone": 0.2,
-#     "Usetablet": 0.2,
-#     "WatchTV": 0.2
-# }
-#
-# action_df = pd.read_csv(os.path.join("/media/arjun/Shared/research_projects/temporal_weight_gating/Sims4ActionVideos",
-#                                      "SimsSplitsCompleteVideos.csv"), sep=";")
-#
-# timed_action_manager = TimedActionsManager(action_df)
-# spurious_action_manager = SpuriousActionsManager(action_df, available_rooms=["Living", "Dining", "Kitchen"])
-#
-# for time, action in timed_actions.items():
-#     timed_action_manager.add_action(action, time)
-#
-# for action, prob in spurious_actions.items():
-#     spurious_action_manager.add_action(action, prob)
-#
-# ds = Sims4ActionDataset(timed_action_manager,
-#                         spurious_action_manager)
-#
-# id = 0
-# for dp in ds:
-#     id += 1
-#     time, room, camera_angle, action = dp
-#     print("{} {} fC{} {}".format(time, room, camera_angle, action))
-#     # if id > 1000:
-#     #     break
