@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+import cv2
 from torch import nn
 from models.convolutional_lstm import ConvLSTM
 from data import build_dataloader
@@ -97,6 +98,49 @@ class Model():
             self.train_epoch(epoch_i)
             self.evaluate(epoch_i)
             self.save_weight(epoch_i)
+
+    def test(self):
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video = cv2.VideoWriter(os.path.join(self.opt.output_dir, 'video.avi'),
+                                fourcc, 1, (self.opt.width, self.opt.height))
+        with torch.no_grad():
+            hidden_state = None
+            losses = []
+            for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['valid']))):
+                time_id, images, actions = sample
+                images = images.to(self.device)
+                actions = actions.to(self.device)
+
+                if hidden_state is None:
+                    context_frames = self.opt.context_frames
+                else:
+                    context_frames = 0
+                _, sequence_length, _, _, _ = images.size()  # set sequence length correctly
+
+                if (time_id == 0).any() and hidden_state is not None:
+                    break  # epoch is defined as the end of a set of timelines
+
+                images.requires_grad = True
+                gen_images, hidden_state = self.net(images, hidden_state)
+                gen_images = gen_images[-1]  # Take only output from final layer
+
+                recon_loss = self.mse_loss(images[:, context_frames + 1:, :, :, :],
+                                           gen_images[:, context_frames:-1, :, :, :])
+
+                loss = recon_loss / torch.tensor(sequence_length - context_frames)
+                losses.append(loss.cpu().item())
+
+                # add images to video
+                for frame_id in range(sequence_length):
+                    frame_image = gen_images[0, frame_id, :, :, :].squeeze()
+                    frame_image = frame_image.permute(1, 2, 0)
+                    frame_image = frame_image.cpu().data.numpy()
+                    frame_image = (frame_image*255).astype(np.uint8)
+                    video.write(frame_image)
+            print("video released")
+            video.release()
+            print("test recon_loss: %6f" % (np.mean(losses)))
+
 
     def evaluate(self, epoch):
         with torch.no_grad():
