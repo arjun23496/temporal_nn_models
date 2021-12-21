@@ -1,5 +1,5 @@
 from options import Options
-from model import Model
+from video_prediction_model import Model
 
 def train():
     opt = Options().parse()
