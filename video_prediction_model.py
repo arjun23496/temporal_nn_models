@@ -2,6 +2,9 @@ import os
 import torch
 import numpy as np
 import cv2
+import scipy.misc
+from PIL import Image
+
 from torch import nn
 from models.convolutional_lstm import ConvLSTM
 from data import build_dataloader
@@ -10,8 +13,12 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 
+def mse_loss(true, pred):
+    return np.mean((true-pred)**2)
+
+
 def peak_signal_to_noise_ratio(true, pred):
-    return 10.0 * torch.log(torch.tensor(1.0) / F.mse_loss(true, pred)) / torch.log(torch.tensor(10.0))
+    return 10.0 * np.log(1.0 / mse_loss(true, pred)) / np.log(10)
 
 
 class Model():
@@ -19,8 +26,8 @@ class Model():
         self.opt = opt
         self.device = self.opt.device
 
-        train_dataloader, valid_dataloader = build_dataloader(opt)
-        self.dataloader = {'train': train_dataloader, 'valid': valid_dataloader}
+        train_dataloader, valid_dataloader, test_dataloader = build_dataloader(opt)
+        self.dataloader = {'train': train_dataloader, 'valid': valid_dataloader, 'test': test_dataloader}
 
         self.net = ConvLSTM(input_dim=self.opt.channels,
                             hidden_dim=[16, 3],
@@ -93,6 +100,25 @@ class Model():
                 print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
                       (epoch, sample_id, 30, loss))
 
+    def write_diagnostic(self, image, text):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+
+        # org
+        org = (10, 10)
+
+        # fontScale
+        fontScale = 0.2
+
+        # Blue color in BGR
+        color = (255, 0, 0)
+
+        # Line thickness of 2 px
+        thickness = 1
+
+        image = cv2.putText(image, text, org, font,
+                            fontScale, color, thickness, cv2.LINE_AA)
+        return image
+
     def train(self):
         for epoch_i in range(0, self.opt.epochs):
             self.train_epoch(epoch_i)
@@ -106,7 +132,8 @@ class Model():
         with torch.no_grad():
             hidden_state = None
             losses = []
-            for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['valid']))):
+
+            for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['test']))):
                 time_id, images, actions = sample
                 images = images.to(self.device)
                 actions = actions.to(self.device)
@@ -136,7 +163,22 @@ class Model():
                     frame_image = frame_image.permute(1, 2, 0)
                     frame_image = frame_image.cpu().data.numpy()
                     frame_image = (frame_image*255).astype(np.uint8)
+
+                    ground_truth = images[0, frame_id, :, :, :].squeeze()
+                    ground_truth = ground_truth.permute(1, 2, 0)
+                    ground_truth = ground_truth.cpu().data.numpy()
+                    ground_truth = (ground_truth*255).astype(np.uint8)
+
+                    # diagnostic information
+                    frame_mse = mse_loss(ground_truth, frame_image)
+                    frame_psnr = peak_signal_to_noise_ratio(ground_truth, frame_image)
+
+                    frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
+                                                        "mse: {:.5f}, psnr: {:.5f}".format(frame_mse, frame_psnr))
+
+                    # write video to file
                     video.write(frame_image)
+
             print("video released")
             video.release()
             print("test recon_loss: %6f" % (np.mean(losses)))
