@@ -8,7 +8,7 @@
 #SBATCH --mem=24GB
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=END,FAIL
-#SBATCH --array=0-3
+#SBATCH --array=0-2
 #SBATCH --mail-user=akaruvally@cs.umass.edu
 
 source /home/akaruvally/.bashrc
@@ -19,26 +19,31 @@ conda activate cache_analysis
 
 cd /home/akaruvally/temporal_nn_models
 
-LEARNING_RATES=(0.1 0.01 0.001 0.0001)
+LEARNING_RATES=(0.001)
+TASK_SIZES=("short" "medium" "long")
 
 comb_id=0
 
-for learning_rate in "${LEARNING_RATES[@]}"
+for task_size in "${TASK_SIZES[@]}"
 do
-  if (( $comb_id % 4 == $SLURM_ARRAY_TASK_ID ))
-  then
-    python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVideos \
-                      --model CDNA \
-                      --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate} \
-                      --context_frames 10 \
-                      --batch_size 12 \
-                      --learning_rate ${learning_rate} \
-                      --epochs 30 \
-                      --print_interval 10 \
-                      --device cuda:0 \
-                      --use_state \
-                      --height 64 \
-                      --width 128
-  fi
-  ((comb_id=comb_id+1))
+  for learning_rate in "${LEARNING_RATES[@]}"
+  do
+    if (( $comb_id % 4 == $SLURM_ARRAY_TASK_ID ))
+    then
+      python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVideos \
+                        --environment_config /home/akaruvally/temporal_nn_models/environment_configs/task_${task_size}.yaml \
+                        --model CDNA \
+                        --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate}_TASK=${task_size} \
+                        --context_frames 10 \
+                        --batch_size 8 \
+                        --learning_rate ${learning_rate} \
+                        --epochs 30 \
+                        --print_interval 10 \
+                        --device cuda:0 \
+                        --use_state \
+                        --height 100 \
+                        --width 100
+    fi
+    ((comb_id=comb_id+1))
+  done
 done

@@ -1,6 +1,7 @@
 import os
 import sys
 import torch
+import yaml
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
@@ -16,30 +17,31 @@ import matplotlib.pyplot as plt
 
 
 def make_dataset(path, image_transform, opt):
-    timed_actions = {
-        "00:05:00": ("Kitchen", "Cook"),
-        "00:08:00": ("Dining", "Eat"),
-        "00:10:00": (None, "Drink"),
-        "00:15:00": ("Kitchen", "Cook"),
-        "00:18:00": ("Dining", "Eat"),
-        "00:20:00": (None, "Drink"),
-    }
+
+    with open(opt.environment_config, 'r') as f:
+        try:
+            environment_config = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            print(exc)
+            sys.exit()
+
+    timed_actions = environment_config["timed_actions"]
 
     event_driven_actions = {}
 
     actions_list = []
-    spurious_actions = {
-        "Readbook": 0.2,
-        "Usecomputer": 0.2,
-        "Usephone": 0.2,
-        "Usetablet": 0.2,
-        "WatchTV": 0.2
-    }
+
+    spurious_actions = environment_config["spurious_actions"]
 
     action_df = pd.read_csv(os.path.join(path, "SimsSplitsCompleteVideos.csv"), sep=";")
 
-    timed_action_manager = TimedActionsManager(action_df)
-    spurious_action_manager = SpuriousActionsManager(action_df, available_rooms=["Living", "Dining", "Kitchen"])
+    timed_action_manager = TimedActionsManager(action_df,
+                                               min_time=environment_config["min_time"],
+                                               max_time=environment_config["max_time"])
+    spurious_action_manager = SpuriousActionsManager(action_df,
+                                                     available_rooms=environment_config["rooms"],
+                                                     min_time=environment_config["min_time"],
+                                                     max_time=environment_config["max_time"])
 
     for time, action in timed_actions.items():
         if action[1] not in actions_list:
@@ -55,7 +57,9 @@ def make_dataset(path, image_transform, opt):
                             timed_action_manager,
                             spurious_action_manager,
                             actions_list,
-                            image_transform=image_transform)
+                            image_transform=image_transform,
+                            min_time=environment_config["min_time"],
+                            max_time=environment_config["max_time"])
 
     return ds
 

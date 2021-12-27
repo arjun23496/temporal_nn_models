@@ -162,19 +162,21 @@ class Model():
                     frame_image = gen_images[0, frame_id, :, :, :].squeeze()
                     frame_image = frame_image.permute(1, 2, 0)
                     frame_image = frame_image.cpu().data.numpy()
-                    frame_image = (frame_image*255).astype(np.uint8)
 
                     ground_truth = images[0, frame_id, :, :, :].squeeze()
                     ground_truth = ground_truth.permute(1, 2, 0)
                     ground_truth = ground_truth.cpu().data.numpy()
-                    ground_truth = (ground_truth*255).astype(np.uint8)
 
                     # diagnostic information
                     frame_mse = mse_loss(ground_truth, frame_image)
                     frame_psnr = peak_signal_to_noise_ratio(ground_truth, frame_image)
 
+                    # convert frames to int8
+                    frame_image = (frame_image * 255).astype(np.uint8)
+                    ground_truth = (ground_truth * 255).astype(np.uint8)
+
                     frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
-                                                        "mse: {:.5f}, psnr: {:.5f}".format(frame_mse, frame_psnr))
+                                                        "mse: {:.6f}, psnr: {:.6f}".format(frame_mse, frame_psnr))
 
                     # write video to file
                     video.write(frame_image)

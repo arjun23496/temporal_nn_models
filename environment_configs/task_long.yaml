@@ -1,0 +1,32 @@
+---
+min_time: "00:00:00"
+max_time: "00:45:00"
+rooms:
+  - Living
+  - Dining
+  - Kitchen
+timed_actions:
+  "00:05:00":
+        - Kitchen
+        - Cook
+  "00:10:00":
+        - Dining
+        - Eat
+  "00:15:00":
+        - null
+        - Drink
+  "00:30:00":
+        - Kitchen
+        - Cook
+  "00:35:00":
+        - Dining
+        - Eat
+  "00:40:00":
+        - null
+        - Drink
+spurious_actions:
+  Readbook: 0.2
+  Usecomputer: 0.2
+  Usephone: 0.2
+  Usetablet: 0.2
+  WatchTV: 0.2

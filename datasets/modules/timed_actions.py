@@ -10,12 +10,14 @@ import copy
 
 
 class TimedActionsManager:
-    def __init__(self, action_df):
+    def __init__(self, action_df, max_time="00:30:00", min_time="00:00:00"):
         self._timed_actions = {}
         self._timed_event_idx = None
         self._timed_action_keys = None
         self._next_event_time = None
         self._action_df = action_df
+        self.MAX_TIME = datetime.strptime(max_time, constants.TIME_FORMAT)
+        self.MIN_TIME = datetime.strptime(min_time, constants.TIME_FORMAT)
 
     def add_action(self, action, time):
         self._timed_actions[time] = action
@@ -42,14 +44,14 @@ class TimedActionsManager:
                 self._next_event_time = datetime.strptime(self._timed_action_keys[self._timed_event_idx],
                                                           constants.TIME_FORMAT)
             except IndexError:
-                self._next_event_time = constants.MAX_TIME
+                self._next_event_time = self.MAX_TIME
 
             camera_angle = get_random_camera_angle(self._action_df,
                                                    subject,
                                                    room,
                                                    action,
                                                    house)
-            current_time = current_time - constants.MIN_TIME + get_duration(self._action_df,
+            current_time = current_time - self.MIN_TIME + get_duration(self._action_df,
                                                                             subject,
                                                                             room,
                                                                             camera_angle,

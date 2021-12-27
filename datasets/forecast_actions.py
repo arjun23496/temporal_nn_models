@@ -21,7 +21,8 @@ import datasets.modules.constants as constants
 
 class Sims4ActionDataset(torch.utils.data.IterableDataset):
     def __init__(self, data_root, timed_action_manager, spurious_action_manager, actions_list, image_transform=None,
-                 house=1, room="Living", subject=1, device='cpu', frames_per_clip=320, skip_frequency=4):
+                 house=1, room="Living", subject=1, device='cpu', frames_per_clip=320, skip_frequency=4,
+                 max_time="00:30:00", min_time="00:00:00"):
         super(Sims4ActionDataset).__init__()
         self.actions_list = actions_list
         self.actions_id_map = { action: id for id, action in enumerate(self.actions_list) }
@@ -38,17 +39,19 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
         self.frames_per_clip = frames_per_clip
         self.skip_frequency = skip_frequency
         self.device = device
+        self.MAX_TIME = datetime.strptime(max_time, constants.TIME_FORMAT)
+        self.MIN_TIME = datetime.strptime(min_time, constants.TIME_FORMAT)
 
     def build_timeline(self):
         timeline = []
-        time = constants.MIN_TIME
+        time = self.MIN_TIME
         room = self.room
 
         # reset action managers prior to building timeline
         for action_manager in self.action_managers:
             action_manager.reset()
 
-        while time < constants.MAX_TIME:
+        while time < self.MAX_TIME:
             for action_manager in self.action_managers:
                 add_status, time, room, timeline = action_manager.update_timeline(self.house, self.subject,
                                                                                   room, time, timeline)

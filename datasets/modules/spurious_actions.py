@@ -11,13 +11,17 @@ import copy
 
 
 class SpuriousActionsManager:
-    def __init__(self, action_df, available_rooms, room_change_probability=0.2):
+    def __init__(self, action_df, available_rooms, room_change_probability=0.2,
+                 max_time="00:30:00", min_time="00:00:00"):
         self._spurious_actions = {}
         self._action_df = action_df
         self._spurious_actions_list = None
         self._action_probs = None
         self.rooms = available_rooms
         self.room_change_probability = room_change_probability
+        self.MAX_TIME = datetime.strptime(max_time, constants.TIME_FORMAT)
+        self.MIN_TIME = datetime.strptime(min_time, constants.TIME_FORMAT)
+
 
     def add_action(self, action, unnorm_probability):
         self._spurious_actions[action] = unnorm_probability
@@ -46,7 +50,7 @@ class SpuriousActionsManager:
                                                    action,
                                                    house)
 
-            current_time = current_time - constants.MIN_TIME + get_duration(self._action_df,
+            current_time = current_time - self.MIN_TIME + get_duration(self._action_df,
                                                                             subject,
                                                                             room,
                                                                             camera_angle,
