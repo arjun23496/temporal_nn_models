@@ -7,7 +7,8 @@ python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVid
                 --learning_rate 0.001 \
                 --epochs 30 \
                 --print_interval 10 \
-                --device cuda:0 \
+                --num_actions 8 \
+                --device cuda \
                 --use_state \
                 --height 100 \
                 --width 100

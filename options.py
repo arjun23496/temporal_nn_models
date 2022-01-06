@@ -21,6 +21,7 @@ class Options():
         self.parser.add_argument('--channels', type=int, default=3, help='# channel of input')
         self.parser.add_argument('--height', type=int, default=64, help='height of image')
         self.parser.add_argument('--width', type=int, default=64, help='width of image')
+        self.parser.add_argument('--num_actions', type=int, default=10, help='number of actions in the dataset.')
         self.parser.add_argument('--output_dir', default='weight', help='directory for model weight.')
         self.parser.add_argument('--pretrained_model', default='',
                                  help='filepath of a pretrained model to initialize from.')
@@ -36,6 +37,12 @@ class Options():
         self.parser.add_argument('--learning_rate', type=float, default=0.001,
                                  help='the base learning rate of the generator')
         self.parser.add_argument('--epochs', type=int, default=10, help='# total training epoch')
+
+        self.parser.add_argument('--recon_loss_weight', type=float, default=1,
+                                 help='weightage given to reconstruction loss')
+        self.parser.add_argument('--action_classification_loss_weight', type=float, default=1,
+                                 help='weightage given to action classification loss')
+
         self.opt = None
 
     def parse(self):

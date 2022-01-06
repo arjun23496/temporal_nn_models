@@ -86,8 +86,8 @@ class ConvLSTM(nn.Module):
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
 
-    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers,
-                 batch_first=False, bias=True, return_all_layers=False, device='cpu'):
+    def __init__(self, image_width, image_height, input_dim, hidden_dim, kernel_size, num_layers,
+                 num_actions, batch_first=False, bias=True, return_all_layers=False, device='cpu'):
         super(ConvLSTM, self).__init__()
 
         self._check_kernel_size_consistency(kernel_size)
@@ -98,6 +98,8 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(hidden_dim) == num_layers:
             raise ValueError('Inconsistent list length.')
 
+        self.image_height = image_height
+        self.image_width = image_width
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.kernel_size = kernel_size
@@ -117,6 +119,8 @@ class ConvLSTM(nn.Module):
                                           bias=self.bias))
 
         self.cell_list = nn.ModuleList(cell_list)
+
+        self.fc_action_output = nn.Linear(image_height*image_width*self.hidden_dim[-2], num_actions)
 
     def forward(self, input_tensor, hidden_state=None):
         """
@@ -171,7 +175,12 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return layer_output_list, last_state_list
+        # action output layer
+        # print("-2 layer size: ",
+              # layer_output_list[-2].reshape((-1, self.image_height*self.image_width*self.hidden_dim[-2])).size())
+        action_output = self.fc_action_output(layer_output_list[-2].reshape((-1, self.image_height*self.image_width*self.hidden_dim[-2])))
+
+        return layer_output_list, action_output, last_state_list
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

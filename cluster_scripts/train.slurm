@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=1080ti-long    # Partition to submit to <m40-short|m40-long|teslax-short|teslax-long>
+#SBATCH --partition=m40-long    # Partition to submit to <m40-short|m40-long|teslax-short|teslax-long>
 #SBATCH --job-name=temp_nn
 #SBATCH -o /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.txt            # output file
 #SBATCH -e /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.err            # File to which STDERR will be written

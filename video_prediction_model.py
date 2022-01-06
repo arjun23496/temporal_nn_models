@@ -29,7 +29,10 @@ class Model():
         train_dataloader, valid_dataloader, test_dataloader = build_dataloader(opt)
         self.dataloader = {'train': train_dataloader, 'valid': valid_dataloader, 'test': test_dataloader}
 
-        self.net = ConvLSTM(input_dim=self.opt.channels,
+        self.net = ConvLSTM(image_width=self.opt.width,
+                            image_height=self.opt.height,
+                            input_dim=self.opt.channels,
+                            num_actions=self.opt.num_actions,
                             hidden_dim=[16, 3],
                             kernel_size=(5, 5),
                             num_layers=2,
@@ -83,13 +86,23 @@ class Model():
                 # hidden_state = None  # reset hidden state when timeline resets
 
             images.requires_grad = True
-            gen_images, hidden_state = self.net(images, hidden_state)
+            gen_images, action_output, hidden_state = self.net(images, hidden_state)
             gen_images = gen_images[-1]  # Take only output from final layer
 
             recon_loss = self.mse_loss(images[:, context_frames+1:, :, :, :],
                                        gen_images[:, context_frames:-1, :, :, :])
 
-            loss = recon_loss/torch.tensor(sequence_length - context_frames)
+            action_output = F.softmax(action_output, dim=1)
+            action_output = action_output.reshape(actions.size())
+            avg_recon_loss = recon_loss/torch.tensor(sequence_length - context_frames)
+            avg_action_loss = -torch.mean(torch.sum(actions*torch.log(action_output), dim=2))
+
+            print("reconstruction: {} action classification: {}".format(avg_recon_loss,
+                                                                        avg_action_loss))
+
+            loss = self.opt.recon_loss_weight*avg_recon_loss + \
+                   self.opt.action_classification_loss_weight*avg_action_loss
+
             loss.backward()
             self.optimizer.step()
 
