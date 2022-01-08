@@ -26,6 +26,8 @@ class Sims4ActionDataset(torch.utils.data.IterableDataset):
         super(Sims4ActionDataset).__init__()
         self.actions_list = actions_list
         self.actions_id_map = { action: id for id, action in enumerate(self.actions_list) }
+        self.id_actions_map = { id: action for id, action in enumerate(self.actions_list) }
+
         self.action_managers = [
             timed_action_manager,
             spurious_action_manager

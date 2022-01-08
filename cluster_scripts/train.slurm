@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=m40-long    # Partition to submit to <m40-short|m40-long|teslax-short|teslax-long>
+#SBATCH --partition=titanx-long    # Partition to submit to <m40-short|m40-long|teslax-short|teslax-long>
 #SBATCH --job-name=temp_nn
 #SBATCH -o /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.txt            # output file
 #SBATCH -e /home/akaruvally/work_dir/temporal_nnmodels/sims_convLSTM_%A_%a.err            # File to which STDERR will be written
@@ -33,13 +33,14 @@ do
       python ./train.py --data_dir /home/akaruvally/work_dir/binds_data/Sims4ActionVideos \
                         --environment_config /home/akaruvally/temporal_nn_models/environment_configs/task_${task_size}.yaml \
                         --model CDNA \
-                        --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate}_TASK=${task_size} \
+                        --output_dir /home/akaruvally/scratch_dir/experiments/temporal_nn_LR=${learning_rate}_TASK=${task_size}_classification \
                         --context_frames 10 \
                         --batch_size 8 \
                         --learning_rate ${learning_rate} \
                         --epochs 30 \
                         --print_interval 10 \
-                        --device cuda:0 \
+                        --num_actions 8 \
+                        --device cuda \
                         --use_state \
                         --height 100 \
                         --width 100
