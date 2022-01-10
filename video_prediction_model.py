@@ -114,17 +114,8 @@ class Model():
                 print("training epoch: %3d, iterations: %3d/%3d loss: %6f" %
                       (epoch, sample_id, 30, loss))
 
-    def write_diagnostic(self, image, text, org=(10, 10)):
-        font = cv2.FONT_HERSHEY_SIMPLEX
-
-        # fontScale
-        fontScale = 0.2
-
-        # Blue color in BGR
-        color = (255, 0, 0)
-
-        # Line thickness of 2 px
-        thickness = 1
+    def write_diagnostic(self, image, text, org=(10, 10), fontScale=0.3, thickness=1, color = (255, 0, 0),
+                         font = cv2.FONT_HERSHEY_SIMPLEX):
 
         image = cv2.putText(image, text, org, font,
                             fontScale, color, thickness, cv2.LINE_AA)
@@ -138,15 +129,24 @@ class Model():
 
     def test(self):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        upsample_scale = 2
+        width_pad = 0
+        print((upsample_scale*(self.opt.width+width_pad), upsample_scale*self.opt.height))
         video = cv2.VideoWriter(os.path.join(self.opt.output_dir, 'video.avi'),
-                                fourcc, 1, (self.opt.width, self.opt.height))
+                                fourcc, 1,
+                                (upsample_scale*(self.opt.width+width_pad), upsample_scale*self.opt.height)
+                                )
         with torch.no_grad():
             hidden_state = None
             losses = []
             recon_losses = []
             class_losses = []
             accuracies = []
+            compute_metrics = True
+            autoregressive = False
 
+            sample = next(self.pooled_batches(self.dataloader['test']))
+            # for sample_id in tqdm(range(1000)):
             for sample_id, sample in tqdm(enumerate(self.pooled_batches(self.dataloader['test']))):
                 time_id, images, actions = sample
                 images = images.to(self.device)
@@ -156,29 +156,37 @@ class Model():
                     context_frames = self.opt.context_frames
                 else:
                     context_frames = 0
-                _, sequence_length, _, _, _ = images.size()  # set sequence length correctly
 
-                if (time_id == 0).any() and hidden_state is not None:
-                    break  # epoch is defined as the end of a set of timelines
+                if autoregressive:
+                    if sample_id == 0:
+                        in_image = images[:, :context_frames, :, :, :]
+                    else:
+                        in_image = gen_images[:, -1: , :, :, :]
+                    actions = actions[:, :context_frames, :]
+                else:
+                    in_image = images
 
-                images.requires_grad = True
-                gen_images, action_output, hidden_state = self.net(images, hidden_state)
+                _, sequence_length, _, _, _ = in_image.size()  # set sequence length correctly
+
+                gen_images, action_output, hidden_state = self.net(in_image, hidden_state)
                 action_output = F.softmax(action_output, dim=1)
-                action_output = action_output.reshape(actions.size())
+                actions_size = in_image.size()
+                action_output = action_output.reshape((actions_size[0], actions_size[1], self.opt.num_actions))
                 gen_images = gen_images[-1]  # Take only output from final layer
 
-                recon_loss = self.mse_loss(images[:, context_frames + 1:, :, :, :],
-                                           gen_images[:, context_frames:-1, :, :, :])
+                if compute_metrics:
+                    recon_loss = self.mse_loss(images[:, context_frames + 1:, :, :, :],
+                                               gen_images[:, context_frames:-1, :, :, :])
 
-                avg_recon_loss = recon_loss / torch.tensor(sequence_length - context_frames)
-                avg_action_loss = -torch.mean(torch.sum(actions[:, context_frames + 1:, :] *
-                                                        torch.log(action_output[:, context_frames: -1, :]), dim=2))
+                    avg_recon_loss = recon_loss / torch.tensor(sequence_length - context_frames)
+                    avg_action_loss = -torch.mean(torch.sum(actions[:, context_frames + 1:, :] *
+                                                            torch.log(action_output[:, context_frames: -1, :]), dim=2))
 
-                recon_losses.append(avg_recon_loss.cpu().item())
-                class_losses.append(avg_action_loss.cpu().item())
-                accuracies.append(torch.mean((torch.argmax(actions,
-                                                          dim=2) == torch.argmax(action_output,
-                                                                                 dim=2)).type(torch.FloatTensor)).cpu().item())
+                    recon_losses.append(avg_recon_loss.cpu().item())
+                    class_losses.append(avg_action_loss.cpu().item())
+                    accuracies.append(torch.mean((torch.argmax(actions,
+                                                              dim=2) == torch.argmax(action_output,
+                                                                                     dim=2)).type(torch.FloatTensor)).cpu().item())
 
                 # add images to video
                 for frame_id in range(sequence_length):
@@ -188,28 +196,45 @@ class Model():
                     frame_image = frame_image.permute(1, 2, 0)
                     frame_image = frame_image.cpu().data.numpy()
 
-                    ground_truth = images[0, frame_id, :, :, :].squeeze()
-                    ground_truth = ground_truth.permute(1, 2, 0)
-                    ground_truth = ground_truth.cpu().data.numpy()
+                    if compute_metrics:
+                        ground_truth = images[0, frame_id, :, :, :].squeeze()
+                        ground_truth = ground_truth.permute(1, 2, 0)
+                        ground_truth = ground_truth.cpu().data.numpy()
 
-                    # diagnostic information
-                    frame_mse = mse_loss(ground_truth, frame_image)
-                    frame_psnr = peak_signal_to_noise_ratio(ground_truth, frame_image)
+                        # diagnostic information
+                        frame_mse = mse_loss(ground_truth, frame_image)
+                        frame_psnr = peak_signal_to_noise_ratio(ground_truth, frame_image)
 
                     # convert frames to int8
                     frame_image = (frame_image * 255).astype(np.uint8)
-                    ground_truth = (ground_truth * 255).astype(np.uint8)
 
-                    frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
-                                                        "recon: {:.6f}, "
-                                                        "class: {:.6f}".format(frame_mse,
-                                                                               frame_psnr),
-                                                        org=(10, 10))
+                    if compute_metrics:
+                        ground_truth = (ground_truth * 255).astype(np.uint8)
 
-                    frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
-                                                        " | ".join(frame_actions),
-                                                        org=(15, 15))
+                    # Upsample image
+                    frame_image = np.pad(frame_image, ((width_pad, 0), (0, 0), (0, 0)), 'constant')
+                    frame_image = cv2.pyrUp(frame_image)
 
+                    vert_offset = 10
+                    offset_step = 7
+
+                    if compute_metrics:
+                        frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
+                                                            "recon: {:.6f}, ".format(frame_mse),
+                                                            org=(10, vert_offset))
+                        vert_offset += offset_step
+
+                        frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
+                                                            "psnr: {:.6f}".format(frame_psnr),
+                                                            org=(10, vert_offset))
+                        vert_offset += offset_step
+
+                    for action in frame_actions:
+                        vert_offset += offset_step
+                        frame_image = self.write_diagnostic(np.ascontiguousarray(frame_image, dtype=np.uint8),
+                                                            action,
+                                                            org=(10, vert_offset))
+                    # print(frame_image.shape)
                     # write video to file
                     video.write(frame_image)
 
